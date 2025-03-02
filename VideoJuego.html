@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego de Esquivar Obstáculos</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/howler/2.2.3/howler.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #1e293b;
+        }
+        canvas {
+            background-color: #0f172a;
+            border: 3px solid #38bdf8;
+        }
+        .menu {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            color: white;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="menu" class="menu">
+        <h1 class="text-3xl font-bold">Juego de Esquivar</h1>
+        <p class="text-lg">Esquiva los obstáculos y sobrevive el mayor tiempo posible.</p>
+        <button id="startBtn" class="bg-blue-500 text-white px-4 py-2 mt-4 rounded">Jugar</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="gameOverMenu" class="menu">
+        <h2 class="text-2xl font-bold">¡Game Over!</h2>
+        <p>Puntuación: <span id="finalScore">0</span></p>
+        <button id="restartBtn" class="bg-red-500 text-white px-4 py-2 mt-4 rounded">Reiniciar</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = 600;
+        canvas.height = 400;
+
+        const menu = document.getElementById("menu");
+        const startBtn = document.getElementById("startBtn");
+        const gameOverMenu = document.getElementById("gameOverMenu");
+        const restartBtn = document.getElementById("restartBtn");
+        const finalScore = document.getElementById("finalScore");
+
+        let player, obstacles, score, animationId, gameRunning;
+        
+        const sound = new Howl({ src: ["https://www.myinstants.com/media/sounds/mario-jump.mp3"] });
+
+        class Player {
+            constructor() {
+                this.x = 50;
+                this.y = canvas.height / 2;
+                this.radius = 15;
+                this.color = "#38bdf8";
+                this.dy = 0;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            update() {
+                this.y += this.dy;
+                if (this.y + this.radius > canvas.height) this.y = canvas.height - this.radius;
+                if (this.y - this.radius < 0) this.y = this.radius;
+            }
+        }
+
+        class Obstacle {
+            constructor() {
+                this.x = canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.radius = 15;
+                this.dx = 4 + score * 0.1; 
+                this.color = "red";
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.closePath();
+            }
+
+            update() {
+                this.x -= this.dx;
+            }
+        }
+
+        function initGame() {
+            player = new Player();
+            obstacles = [];
+            score = 0;
+            gameRunning = true;
+            animate();
+            spawnObstacles();
+        }
+
+        function animate() {
+            if (!gameRunning) return;
+            animationId = requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            player.draw();
+            player.update();
+
+            obstacles.forEach((obstacle, index) => {
+                obstacle.draw();
+                obstacle.update();
+
+                if (obstacle.x + obstacle.radius < 0) {
+                    obstacles.splice(index, 1);
+                    score++;
+                }
+
+                const dx = player.x - obstacle.x;
+                const dy = player.y - obstacle.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < player.radius + obstacle.radius) {
+                    gameOver();
+                }
+            });
+
+            ctx.fillStyle = "#fff";
+            ctx.font = "20px Arial";
+            ctx.fillText(`Puntuación: ${score}`, 10, 30);
+        }
+
+        function spawnObstacles() {
+            if (!gameRunning) return;
+            obstacles.push(new Obstacle());
+            setTimeout(spawnObstacles, Math.random() * 1500 + 1000);
+        }
+
+        function gameOver() {
+            cancelAnimationFrame(animationId);
+            gameRunning = false;
+            finalScore.innerText = score;
+            gsap.fromTo("#gameOverMenu", { opacity: 0 }, { opacity: 1, display: "block", duration: 0.5 });
+        }
+
+        window.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowUp") {
+                player.dy = -5;
+                sound.play();
+            }
+            if (e.key === "ArrowDown") {
+                player.dy = 5;
+            }
+        });
+
+        window.addEventListener("keyup", () => {
+            player.dy = 0;
+        });
+
+        startBtn.addEventListener("click", () => {
+            menu.style.display = "none";
+            initGame();
+        });
+
+        restartBtn.addEventListener("click", () => {
+            gameOverMenu.style.display = "none";
+            initGame();
+        });
+
+        gsap.fromTo("#menu", { opacity: 0 }, { opacity: 1, display: "block", duration: 1 });
+    </script>
+
+</body>
+</html>
